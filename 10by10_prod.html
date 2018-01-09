@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Canvas</title>
+    <style>
+    	* { padding: 0; margin: 0; }
+    	#myCanvas { display: block; margin: 0px auto; }
+		#scorePanel { margin: 5px auto; width:500px;height:40px; position:relative;}
+		#scoreCanvas {width:300px;height:100%;border-radius:5px;position:absolute;z-index: -1;}
+		#score { width:300px;height:100%; border:2px solid #428bca;user-select: none;float: left;
+				border-radius:5px; box-sizing:border-box;text-align:center;display:inline-block;
+				line-height:36px;font-size:18px;color:#428bca;font-weight:bold;margin-right:5px;}
+		#steps {width:40px;height:100%;border:2px solid #428bca; border-radius:50%; box-sizing:border-box;display:inline-block;
+				margin-right:5px;float: left;line-height:36px;font-size:18px;text-align:center;user-select: none;color:#428bca;font-weight:bold;}
+		#btns {width:150px;height:100%;display:inline-block;float: left;cursor:pointer;
+				line-height:36px;font-size:18px;text-align:center;user-select: none;color:#428bca;font-weight:bold;}
+		#undo {width:50%;height:100%;border:2px solid #428bca; border-right:1px solid #428bca; border-radius:5px 0 0 5px; box-sizing:border-box;display:inline-block;float: left;}
+		#redo {width:50%;height:100%;border:2px solid #428bca; border-left:1px solid #428bca; border-radius:0 5px 5px 0; box-sizing:border-box;display:inline-block;float: left;}
+		#btns > div:hover{background:rgba(66,139,202,0.25);}
+    </style>
+</head>
+<body>
+<div id="scorePanel">
+	<canvas id="scoreCanvas" width="300" height="40"></canvas>
+	<div id="score"></div>
+	<div id="steps"></div>
+	<div id="btns">
+		<div id="undo">Undo</div>
+		<div id="redo">Redo</div>
+	</div>
+</div>
+<canvas id="myCanvas" width="500" height="500"></canvas>
+
+<script>
+
+
+window.onload = function(){
+	var canvas = document.getElementById("myCanvas"),
+		scorePanel = document.getElementById("scorePanel"),
+		scoreCanvas = document.getElementById("scoreCanvas"),
+		score = document.getElementById("score"),
+		step = document.getElementById("steps"),
+		btnUndo = document.getElementById("undo"),
+		btnRedo = document.getElementById("redo");
+		
+	var ctx = canvas.getContext("2d"),
+		ctxScore = scoreCanvas.getContext("2d");
+	
+	var count = 0,
+		totalCount = 0,
+		stepCount = 0,
+		arr = [
+				[0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0],
+				[0,0,0,0,0,0,0,0,0,0]
+			],
+		arr_userInput = [];
+	
+	function drawBlock(x,y,v) {
+		ctx.beginPath();
+		ctx.rect(50*y+1, 50*x+1, 48, 48);
+		if(v==0){
+			ctx.fillStyle = "#000000";
+		}else{
+			ctx.fillStyle = "#ffed2d";
+		}
+		ctx.fill();
+		ctx.closePath();
+	}
+	
+	function drawBlockFocus(x,y) {
+		ctx.beginPath();
+		ctx.rect(50*x+13, 50*y+13, 24, 24);
+		ctx.fillStyle = "#428bca";
+		ctx.fill();
+		ctx.closePath();
+		if(totalCount==100){
+			gameOver();
+		}
+	}
+	
+	function drawGrid() {
+		ctx.clearRect(0, 0, canvas.width, canvas.height);
+		totalCount = 0;
+		for (var i=0;i<arr.length;i++){
+			for (var j=0;j<arr[i].length;j++){
+				drawBlock(i,j,arr[i][j]);
+				if(arr[i][j] != 0){
+					totalCount++;
+				}
+			}
+		}
+		updateScore();
+		updateSteps();
+	}
+	
+	function drawProgress() {
+		if(totalCount>count){
+			ctxScore.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
+			ctxScore.beginPath();
+			ctxScore.rect(0, 0, count*3, scoreCanvas.height);
+			ctxScore.fillStyle = "#ffed2d";
+			ctxScore.fill();
+			ctxScore.closePath();
+			ctxScore.beginPath();
+			ctxScore.rect(count*3, 0, scoreCanvas.width, scoreCanvas.height);
+			ctxScore.fillStyle = "#000000";
+			ctxScore.fill();
+			ctxScore.closePath();
+			count++;
+			window.requestAnimationFrame(drawProgress);
+		}else if(totalCount<count){
+			ctxScore.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
+			ctxScore.beginPath();
+			ctxScore.rect(0, 0, count*3, scoreCanvas.height);
+			ctxScore.fillStyle = "#ffed2d";
+			ctxScore.fill();
+			ctxScore.closePath();
+			ctxScore.beginPath();
+			ctxScore.rect(count*3, 0, scoreCanvas.width, scoreCanvas.height);
+			ctxScore.fillStyle = "#000000";
+			ctxScore.fill();
+			ctxScore.closePath();
+			count--;
+			window.requestAnimationFrame(drawProgress);
+		}else{
+			ctxScore.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height);
+			ctxScore.beginPath();
+			ctxScore.rect(0, 0, totalCount*3, scoreCanvas.height);
+			ctxScore.fillStyle = "#ffed2d";
+			ctxScore.fill();
+			ctxScore.closePath();
+			ctxScore.beginPath();
+			ctxScore.rect(totalCount*3, 0, scoreCanvas.width, scoreCanvas.height);
+			ctxScore.fillStyle = "#000000";
+			ctxScore.fill();
+			ctxScore.closePath();
+		}
+		
+	}
+	
+	function updateScore() {
+		score.innerHTML = totalCount+" / 100";
+		drawProgress();
+	}
+	
+	function updateSteps() {
+		step.innerHTML = stepCount;
+	}
+	
+	function changeArr(x,y) {
+		arr[y][x] = arr[y][x]==0?1:0;
+		if(x-1>=0){
+			arr[y][x-1] = arr[y][x-1]==0?1:0;
+		}
+		
+		if(x+1<=9){
+			arr[y][x+1] = arr[y][x+1]==0?1:0;
+		}
+		
+		if(y-1>=0){
+			arr[y-1][x] = arr[y-1][x]==0?1:0;
+			if(x-1>=0){
+				arr[y-1][x-1] = arr[y-1][x-1]==0?1:0;
+			}
+			if(x+1<=9){
+				arr[y-1][x+1] = arr[y-1][x+1]==0?1:0;
+			}
+		}
+		
+		if(y+1<=9){
+			arr[y+1][x] = arr[y+1][x]==0?1:0;
+			if(x-1>=0){
+				arr[y+1][x-1] = arr[y+1][x-1]==0?1:0;
+			}
+			if(x+1<=9){
+				arr[y+1][x+1] = arr[y+1][x+1]==0?1:0;
+			}
+		}
+	}
+	var v = 1;
+	function drawEraseVerticalLine() {
+		if(v%50!=49&&v%50!=1){
+			ctx.beginPath();
+			ctx.rect(0, v, 2, 2);
+			ctx.rect(49, v, 2, 2);
+			ctx.rect(149, v, 2, 2);
+			ctx.rect(249, v, 2, 2);
+			ctx.rect(349, v, 2, 2);
+			ctx.rect(449, v, 2, 2);
+			ctx.rect(99, 500-v, 2, 2);
+			ctx.rect(199, 500-v, 2, 2);
+			ctx.rect(299, 500-v, 2, 2);
+			ctx.rect(399, 500-v, 2, 2);
+			ctx.rect(499, 500-v, 2, 2);
+			ctx.fillStyle = "#ffed2d";
+			ctx.fill();
+			ctx.closePath();
+		}
+		
+		if(v%50!=49){
+			ctx.beginPath();
+			ctx.rect(0, v, 2, 2);
+			ctx.rect(49, v, 2, 2);
+			ctx.rect(149, v, 2, 2);
+			ctx.rect(249, v, 2, 2);
+			ctx.rect(349, v, 2, 2);
+			ctx.rect(449, v, 2, 2);
+			ctx.fillStyle = "#ffed2d";
+			ctx.fill();
+			ctx.closePath();
+		}
+		
+		if(v%50!=1){
+			ctx.beginPath();
+			ctx.rect(99, 500-v, 2, 2);
+			ctx.rect(199, 500-v, 2, 2);
+			ctx.rect(299, 500-v, 2, 2);
+			ctx.rect(399, 500-v, 2, 2);
+			ctx.rect(499, 500-v, 2, 2);
+			ctx.fillStyle = "#ffed2d";
+			ctx.fill();
+			ctx.closePath();
+		}
+		
+		v+=2;
+		if(v<500){
+			window.requestAnimationFrame(drawEraseVerticalLine);
+		}else{
+			v = 0;
+			drawEraseHorizontalLine();
+			return;
+		}
+	}
+	
+	function drawEraseHorizontalLine() {
+		ctx.beginPath();
+		ctx.rect(250, 0, v, 2);
+		ctx.rect(250, 49, v, 2);
+		ctx.rect(250, 99, v, 2);
+		ctx.rect(250, 149, v, 2);
+		ctx.rect(250, 199, v, 2);
+		ctx.rect(250, 249, v, 2);
+		ctx.rect(250, 299, v, 2);
+		ctx.rect(250, 349, v, 2);
+		ctx.rect(250, 399, v, 2);
+		ctx.rect(250, 449, v, 2);
+		ctx.rect(250, 499, v, 2);
+		ctx.rect(250, 0, -v, 2);
+		ctx.rect(250, 49, -v, 2);
+		ctx.rect(250, 99, -v, 2);
+		ctx.rect(250, 149, -v, 2);
+		ctx.rect(250, 199, -v, 2);
+		ctx.rect(250, 249, -v, 2);
+		ctx.rect(250, 299, -v, 2);
+		ctx.rect(250, 349, -v, 2);
+		ctx.rect(250, 399, -v, 2);
+		ctx.rect(250, 449, -v, 2);
+		ctx.rect(250, 499, -v, 2);
+		ctx.fillStyle = "#ffed2d";
+		ctx.fill();
+		ctx.closePath();
+		v+=5;
+		if(v<=250){
+			window.requestAnimationFrame(drawEraseHorizontalLine);
+		}else{
+			drawSmiley();
+		}
+	}
+	
+	function drawSmiley() {
+		ctx.beginPath();
+		ctx.arc(250,300,150,Math.PI/6,Math.PI*5/6);
+		ctx.stroke();
+		
+		ctx.beginPath();
+		ctx.arc(150,150,60,Math.PI*7/6,Math.PI*11/6);
+		ctx.stroke();
+		
+		ctx.beginPath();
+		ctx.arc(350,150,60,Math.PI*7/6,Math.PI*11/6);
+		ctx.stroke();
+	}
+	
+	function gameOver(){
+		canvas.removeEventListener("click",cvsDraw);
+		btnUndo.removeEventListener("click",cvsUndo);
+		btnRedo.removeEventListener("click",cvsRedo);
+		drawGrid();
+		var a = 0,
+			b = 0;
+		var timerBG = setInterval(function(){
+			document.body.style.backgroundColor = "rgba(0,0,0,"+a/100+")";
+			scorePanel.style.opacity = (100-a)/100;
+			a++;
+			if(a>100){
+				clearInterval(timerBG);
+				scorePanel.innerHTML="";
+				drawEraseVerticalLine();
+				var timerTransform = setInterval(function(){
+					if(b>100){
+						clearInterval(timerTransform);
+					}
+					myCanvas.style.borderRadius = b/2+"%";
+					b++;
+				},10);
+			}
+			
+		},10);
+	}
+	
+	drawGrid();
+	
+	function cvsDraw(e){
+		var x = parseInt((e.clientX - canvas.offsetLeft)/50),
+			y = parseInt((e.clientY - canvas.offsetTop)/50);
+		arr_userInput.splice(stepCount);
+		arr_userInput.push([x,y]);
+		changeArr(x,y);
+		stepCount++;
+		drawGrid();
+		drawBlockFocus(x,y);
+	}
+	
+	function cvsUndo(e){
+		if(stepCount==0){
+			return;
+		}
+		var x = arr_userInput[stepCount-1][0],
+			y = arr_userInput[stepCount-1][1];
+		changeArr(x,y);
+		stepCount--;
+		drawGrid();
+		drawBlockFocus(x,y);
+	}
+	
+	function cvsRedo(e){
+		if(stepCount==arr_userInput.length){
+			return;
+		}
+		var x = arr_userInput[stepCount][0],
+			y = arr_userInput[stepCount][1];
+		changeArr(x,y);
+		stepCount++;
+		drawGrid();
+		drawBlockFocus(x,y);
+	}
+	
+	canvas.addEventListener("click",cvsDraw);
+	
+	btnUndo.addEventListener("click",cvsUndo);
+	
+	btnRedo.addEventListener("click",cvsRedo);
+}
+	
+</script>
+
+</body>
+</html>
